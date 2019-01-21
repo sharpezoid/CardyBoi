@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d70183c8c5bf7b94d908ca0fcb23ba8f, type: 3}
+  m_Name: Hello - outcome
+  m_EditorClassIdentifier: 
+  chance: 100
+  stage: {fileID: 11400000, guid: e0986689e7915aa4b9eaf02d8dfeb039, type: 2}
+  attributeMods: []
+  alive: 1

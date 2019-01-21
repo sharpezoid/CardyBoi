@@ -13,7 +13,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Name: Heal
   Description: 
-  PlayCost: 1
+  ActionCost: 0
+  ManaCost: 1
   BuyCost: 5
   Suit: 4
   effects:
@@ -21,3 +22,6 @@ MonoBehaviour:
     attributes:
     - attribute: 6
       Value: 5
+    cardEffectPrefab: {fileID: 1935886360971374, guid: dcdc20c0f1542084d91ad003469801f6,
+      type: 2}
+  exhaust: 0

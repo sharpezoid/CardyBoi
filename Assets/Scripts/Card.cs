@@ -14,7 +14,10 @@ public class Card : ScriptableObject
     public string Description;
 
     [SerializeField]
-    public int PlayCost;
+    public int ActionCost;
+
+    [SerializeField]
+    public int ManaCost;
 
     [SerializeField]
     public int BuyCost;
@@ -28,6 +31,20 @@ public class Card : ScriptableObject
     [SerializeField]
 
     public List<CardEffect> effects = new List<CardEffect>();
+    [Flags]
+    public enum Targets : byte    // -- what can this card target? enemy, self, all, ally ?
+    {
+        Self = 0,
+        Ally = 1,
+        Enemy = 2,
+        All = 4,
+        None = 8       
+    };
+    [SerializeField]
+    public readonly Targets TargetFlags;
+
+    [SerializeField]
+    public bool exhaust = false;
 }
 
 [System.Serializable]
@@ -60,6 +77,9 @@ public class CardEffect
 
     [SerializeField]
     public List<CardAttribute> attributes = new List<CardAttribute>();
+
+    [SerializeField]
+    public GameObject cardEffectPrefab;
 }
 
 [System.Serializable]

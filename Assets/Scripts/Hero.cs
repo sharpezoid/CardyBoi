@@ -2,17 +2,32 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[System.Serializable]
 public class Hero : Unit
 {
-    GameController gc;
-    public Animator animator;
-    public Deck initialDeck;
-    public List<CardSceneObj> drawDeck = new List<CardSceneObj>();
-    public List<CardSceneObj> discardPile = new List<CardSceneObj>();
-    public List<CardSceneObj> destroyPile = new List<CardSceneObj>();
-    public Hand hand;
+    //[SerializeField]
+    //GameController gc;
+    //[SerializeField]
+    //public Animator animator;
 
-    public int maxDraw = 4;
+    [SerializeField]
+   // public Deck initialDeck;
+   // public Deck currentDeck;
+    public List<Card> drawDeck = new List<Card>();
+    public List<Card> discardPile = new List<Card>();
+    public List<Card> exhaustPile = new List<Card>();
+    //public List<CardSceneObj> drawDeck = new List<CardSceneObj>();
+    //public List<CardSceneObj> discardPile = new List<CardSceneObj>();
+    //public List<CardSceneObj> exhaustPile = new List<CardSceneObj>();
+    //public Hand hand;
+
+    public int maxDraw = 3;
+    public int actions = 1;
+    public int maxActions = 1;
+    public int mana = 0;
+    public int maxMana = 0;
+
+    //public StatUI statUI;
 
     public enum Class
     {
@@ -38,31 +53,10 @@ public class Hero : Unit
         //
     }
 
-    public void SetupHero()
+    public void ResetTurn()
     {
-        gc = FindObjectOfType<GameController>();
-        animator = GetComponent<Animator>();
-
-        CreateDeck();
+        actions = maxActions;
     }
 
-    void CreateDeck()
-    {
-        for (int cLoop = 0; cLoop < initialDeck.cards.Count; cLoop++)
-        {
-            GameObject c = GameObject.Instantiate(gc.cardPrefab, hand.startTransform);
-            RectTransform rt = c.GetComponent<RectTransform>();
-            rt.position = hand.startTransform.position;
-            c.GetComponent<CardSceneObj>().SetupCard(initialDeck.cards[cLoop]);
 
-            drawDeck.Add(c.GetComponent<CardSceneObj>());
-        }
-    }
-
-    public void DrawCard()
-    {
-        CardSceneObj c = drawDeck[0];
-        hand.AddCard(c);
-        drawDeck.RemoveAt(0);
-    }
 }

@@ -3,19 +3,35 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // -- control flow of turns
-public class TurnController : MonoBehaviour
+public class TurnController : MonoSingleton<TurnController>
 {
     GameController gc = null;
+
+    public enum TurnState
+    {
+        None,
+        StartTurn,
+        DrawHand,
+        PlayCards,
+        WaitingOnCards,
+        EndTurn
+    }
+    public TurnState turnState = TurnState.None;
 
     private void Start()
     {
         gc = FindObjectOfType<GameController>();
-    }
 
-    public void DoTurn()
-    {
         StartCoroutine(RunTurn());
     }
+
+    //public void DoTurn()
+    //{
+    //    if (turnState == TurnState.None)
+    //    {
+    //        StartCoroutine(RunTurn());
+    //    }
+    //}
 
     IEnumerator RunTurn()
     {
@@ -23,74 +39,117 @@ public class TurnController : MonoBehaviour
 
         yield return StartCoroutine(DrawCards());
 
-        yield return StartCoroutine(PostDrawCards());
-
         yield return StartCoroutine(PlayCards());
-
-        StartCoroutine(EndTurn());
 
         yield return null;
     }
 
     IEnumerator RunStartOfTurn()
     {
-        
+        Debug.Log("Start Turn");
+
+        turnState = TurnState.StartTurn;
+
+        for(int hLoop = 0; hLoop < GameController.instance.squad.Count; hLoop++)
+        {
+            GameController.instance.squad[hLoop].hero.ResetTurn();
+        }
 
         yield return null;
     }
 
     IEnumerator DrawCards()
     {
-        for (int hLoop = 0; hLoop < gc.squad.heroes.Count; hLoop++)
-        {
-            for (int cLoop = 0; cLoop < gc.squad.heroes[hLoop].maxDraw; cLoop++)
-            {
-                gc.squad.heroes[hLoop].DrawCard();
+        Debug.Log("Drawing Cards...");
 
-                gc.OnDrawAction();
+        turnState = TurnState.DrawHand;
+        int totalDrawn = 0;
+        for (int hLoop = 0; hLoop < gc.squad.Count; hLoop++)
+        {
+            int totalHeroDrawn = 0;
+            for (int cLoop = 0; cLoop < gc.squad[hLoop].hero.maxDraw; cLoop++)
+            {
+                if (gc.squad[hLoop].DrawCard())
+                {
+                    totalHeroDrawn++;
+                    totalDrawn++;
+                    
+                    gc.OnDrawAction();
+                }
 
                 yield return new WaitForSeconds(0.1f);
                 yield return null;
             }
 
+            Debug.Log("Hero finished drawing " + totalHeroDrawn + " cards");
+
             yield return new WaitForSeconds(0.2f);
         }
 
+        Debug.Log("Done Drawing " + totalDrawn + " cards for " + gc.squad.Count + " heroes");
+
         yield return null;
     }
 
-    IEnumerator PostDrawCards()
+    public void AddCardToPlayedQueue(CardSceneObj card)
     {
+        Debug.Log("Card Added To Play Queue : " + card.card.Name);
 
-        yield return null;
+        cardQueue.Enqueue(card);
     }
-
     public Queue<CardSceneObj> cardQueue = new Queue<CardSceneObj>();
     IEnumerator PlayCards()
     {
-        // -- loop cards in card queue
-        if (cardQueue.Count > 0)
+        Debug.Log("Play Cards Start");
+
+        turnState = TurnState.PlayCards;
+
+        bool isPlaying = false;
+        do
         {
-            CardSceneObj card = cardQueue.Dequeue();
-
-            do
+            // -- loop cards in card queue
+            if (cardQueue.Count > 0 && !isPlaying)
             {
-                yield return card.PlayCard();
-                if (cardQueue.Count > 0)
-                {
-                    card = cardQueue.Dequeue();
-                }
-                yield return null;
-            }
-            while (cardQueue.Count > 0);//|| !FightWon);
+                    CardSceneObj card = cardQueue.Dequeue();
+                    isPlaying = true;
+                    Debug.Log("Got Card To Play..." + " card : " + card.card.Name + " of " + cardQueue.Count );
 
+                    yield return StartCoroutine(card.PlayCard());
+                 
+                    isPlaying = false;
+                    yield return null;
+            }
+            yield return null;
         }
+        while ( turnState == TurnState.PlayCards || cardQueue.Count > 0);
+
+        Debug.Log("Play Cards End");
+
+        StartCoroutine(RunEndTurn());
 
         yield return null;
     }
 
-    IEnumerator EndTurn()
+    public void EndTurn()
     {
+        turnState = TurnState.WaitingOnCards;
+    }
+
+    public IEnumerator RunEndTurn()
+    {
+        Debug.Log("END TURN");
+
+        OnScreenDebug.instance.Log(">>>>>>>>>  END TURN <<<<<<<<<<");
+
+        turnState = TurnState.EndTurn;
+
+        for(int hLoop = 0; hLoop < GameController.instance.squad.Count; hLoop++)
+        {
+            GameController.instance.squad[hLoop].hand.DiscardHand();
+        }
+
+        StartCoroutine(RunTurn());
+
         yield return null;
     }
 }

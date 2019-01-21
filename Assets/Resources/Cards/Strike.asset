@@ -13,7 +13,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Name: Hit
   Description: 
-  PlayCost: 1
+  ActionCost: 1
+  ManaCost: 0
   BuyCost: 5
   Suit: 5
   effects:
@@ -21,3 +22,6 @@ MonoBehaviour:
     attributes:
     - attribute: 4
       Value: 5
+    cardEffectPrefab: {fileID: 1935886360971374, guid: dcdc20c0f1542084d91ad003469801f6,
+      type: 2}
+  exhaust: 0

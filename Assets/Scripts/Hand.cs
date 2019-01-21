@@ -6,11 +6,19 @@ using UnityEngine.UI;
 
 public class Hand : MonoBehaviour
 {
-    GameController gc;
+    //GameController gc;
+    public GameObject target;
+    public GameObject line;
+
+    public Hero owner;
+    
     //public GameObject cardPrefab;
     public List<CardSceneObj> cards = new List<CardSceneObj>(); // List that holds all my ten cards
     public Transform startTransform;  //Location where to start adding my cards
     public Transform handTransform; //The hand panel reference
+    public Transform discardTransform;
+    public Transform exhaustTransform;
+    
     //int howManyAdded; // How many cards I added so far
     float gapSize; //the gap I need between each card
     float handWidth; // how wide is a hand 
@@ -28,12 +36,30 @@ public class Hand : MonoBehaviour
 
     int prevHoverIndex = -1;
 
+    bool goneBeyondThreshold = false; // -- has a draggeed card gone far enough to be consideered in play
+    const int CARD_DRAG_THRESHOLD = 100;
+
+    // -- UI
+    public Text drawDeckSizeText;
+    public Text exhausePileSizeText;
+    public Text discardPileSizeText;
+    
+
     void Start()
     {
-        gc = FindObjectOfType<GameController>();
+       // gc = FindObjectOfType<GameController>();
         //howManyAdded = 0;
         //gapFromOneItemToTheNextOne = 1.0f;
-        handWidth = handTransform.GetComponent<RectTransform>().rect.width - gc.cardPrefab.GetComponent<RectTransform>().rect.width;
+        handWidth = handTransform.GetComponent<RectTransform>().rect.width - GameController.instance.cardPrefab.GetComponent<RectTransform>().rect.width;
+
+        UpdateDeckSizes();
+    }
+
+    public void UpdateDeckSizes()
+    {
+        discardPileSizeText.text = owner.discardPile.Count.ToString();
+        exhausePileSizeText.text = owner.exhaustPile.Count.ToString();
+        drawDeckSizeText.text = owner.drawDeck.Count.ToString();
     }
 
     private void Update()
@@ -61,32 +87,213 @@ public class Hand : MonoBehaviour
         }
     }
 
+    public void StartDrag(PointerEventData eventData, CardSceneObj card)
+    {
+        goneBeyondThreshold = false;
+    }
+
     public void UpdateDrag(PointerEventData eventData, CardSceneObj card)
     {
         // show target at mouse cursor.
+        target.GetComponent<RectTransform>().position = eventData.position;
 
         // keep card locked in highlighted position
 
+        // -- what are we over? show color change.
+        RaycastHit hit;
+        Ray ray = Camera.main.ScreenPointToRay(eventData.position);
+        if (Physics.Raycast(ray, out hit, 1000))
+        {
+            if (hit.transform.gameObject.tag == "Player")
+            {
+                // hit player
+                target.GetComponent<Image>().color = Color.red;
+            }
+            else if (hit.transform.gameObject.tag == "Enemy")
+            {
+                // hit player
+                target.GetComponent<Image>().color = Color.green;
+            }
+            else
+            {
+                // hit nowt
+                target.GetComponent<Image>().color = Color.gray;
+            }
+        }
+
+        // -- if we go below y threshold cancel the drag
+        if (eventData.position.y < CARD_DRAG_THRESHOLD && goneBeyondThreshold)
+        {
+            EndDrag(eventData, card);
+        }
+         
         // -- show dotted curve between card and cursor
+
+        // -- check beyond threshold
+        if (eventData.position.y > CARD_DRAG_THRESHOLD)
+        {
+            goneBeyondThreshold = true;
+        }
     }
+
+
+
+    public void EndDrag(PointerEventData eventData, CardSceneObj card)
+    {
+        // -- if somehow we have managed to play card twice (OnDrop & OnDragEnd at once etc...)
+        //if (card.isWaitingToPlay)
+        //{
+        //    return;
+        //}
+
+        // -- what are we over?
+        RaycastHit hit;
+        Ray ray = Camera.main.ScreenPointToRay(eventData.position);
+        if (Physics.Raycast(ray, out hit, 1000))
+        {
+            if (CanPlayCard(card))
+            {
+                if (hit.transform.gameObject.tag == "Player")
+                {
+                    // hit player
+                    TurnController.instance.AddCardToPlayedQueue(card);
+                    owner.actions -= card.card.ActionCost;
+                    owner.mana -= card.card.ManaCost;
+                    card.isWaitingToPlay = true;
+                    cards.Remove(card);
+
+                    Vector3 targetPos = Vector3.zero;
+                    RectTransform rt = card.GetComponent<RectTransform>();
+                    targetPos.z = 10000;
+                    rt.position = targetPos;
+
+                    // -- Send to proper pile - done at end of sequence not at start
+                    if (card.card.exhaust)
+                    {
+                        // -- send to exhaust pile
+                        AddCardToExhaustPile(card);
+                    }
+                    else
+                    {
+                        // -- send to discard pile
+                        AddCardToDiscardPile(card);
+                    }
+
+                    OnScreenDebug.instance.Log(card.card.Name);
+                }
+                else if (hit.transform.gameObject.tag == "Enemy")
+                {
+                    TurnController.instance.AddCardToPlayedQueue(card);
+                    // hit enemy
+                    owner.actions -= card.card.ActionCost;
+                    owner.mana -= card.card.ManaCost;
+                    card.isWaitingToPlay = true;
+
+                    cards.Remove(card);
+
+                    // -- Send to proper pile - done at end of sequence not at start
+                    if (card.card.exhaust)
+                    {
+                        // -- send to exhaust pile
+                        AddCardToExhaustPile(card);
+                    }
+                    else
+                    {
+                        // -- send to discard pile
+                        AddCardToDiscardPile(card);
+                    }
+
+                    OnScreenDebug.instance.Log(card.card.Name);
+                }
+                else
+                {
+
+                    // hit nowt
+                    if (card.card.TargetFlags == Card.Targets.None)
+                    {
+                        TurnController.instance.AddCardToPlayedQueue(card);
+                        //card.PlayCard();
+                        owner.actions -= card.card.ActionCost;
+                        owner.mana -= card.card.ManaCost;
+                        card.isWaitingToPlay = true;
+
+                        cards.Remove(card);
+
+                        Vector3 targetPos = Vector3.zero;
+                        RectTransform rt = card.GetComponent<RectTransform>();
+                        targetPos.z = 10000;
+                        rt.position = targetPos;
+
+                        // -- Send to proper pile - done at end of sequence not at start
+                        if (card.card.exhaust)
+                        {
+                            // -- send to exhaust pile
+                            AddCardToExhaustPile(card);
+                        }
+                        else
+                        {
+                            // -- send to discard pile
+                            AddCardToDiscardPile(card);
+                        }
+
+                        OnScreenDebug.instance.Log(card.card.Name);
+                    }
+                }
+            }
+        }
+
+        card.isDragged = false;
+
+       // owner.statUI.SetStats(owner);
+
+        UpdateDeckSizes();
+    }
+
+    bool CanPlayCard(CardSceneObj c)
+    {
+        bool canPlay = (owner.actions >= c.card.ActionCost &&
+            owner.mana >= c.card.ManaCost || !c.isWaitingToPlay);
+
+        return canPlay;
+    }
+
 
     public void AddCard(CardSceneObj c)
     {
         RectTransform rt = c.GetComponent<RectTransform>();
         rt.position = startTransform.position;
+        //cardSceneObj.card = c;
         cards.Add(c);
 
+        c.isWaitingToPlay = false;
+
+        //gapSize = handWidth / cards.Count;
+
+        //twistPerCard = totalTwist / cards.Count;
+        //startTwist = -1f * (totalTwist / 2f);
+
+        c.SetHand(this);
+
+        //statUI.SetStats();
+    }
+
+    public void DiscardHand()
+    {
+        for (int i = cards.Count - 1; i >= 0; i--)
+        {
+            Debug.Log("Discarding CARD : " + cards[i].card.Name + " i: " + i);
+            AddCardToDiscardPile(cards[i]);
+        }
+    }
+
+    void UpdateCards()
+    {
         gapSize = handWidth / cards.Count;
 
         twistPerCard = totalTwist / cards.Count;
         startTwist = -1f * (totalTwist / 2f);
 
-        c.SetHand(this);
-    }
-
-    void UpdateCards()
-    {
-        for(int cLoop = 0; cLoop < cards.Count; cLoop++)
+        for (int cLoop = 0; cLoop < cards.Count; cLoop++)
         {
             if (!cards[cLoop].isDragged)
             {
@@ -134,6 +341,30 @@ public class Hand : MonoBehaviour
                 }
             }
         }
+    }
+
+    public void AddCardToDiscardPile(CardSceneObj card)
+    {
+        owner.discardPile.Add(card.card);
+        discardPileSizeText.text = owner.discardPile.Count.ToString();
+        //card.gameObject.SetActive(false);
+
+        Vector3 targetPos = Vector3.zero;
+        RectTransform rt = card.GetComponent<RectTransform>();
+        targetPos.z = 10000;
+        rt.position = targetPos;
+    }
+
+    public void AddCardToExhaustPile(CardSceneObj card)
+    {
+        owner.exhaustPile.Add(card.card);
+        exhausePileSizeText.text = owner.exhaustPile.Count.ToString();
+        //card.gameObject.SetActive(false);
+
+        Vector3 targetPos = Vector3.zero;
+        RectTransform rt = card.GetComponent<RectTransform>();
+        targetPos.z = 10000;
+        rt.position = targetPos;
     }
 
     //public void FitCards()

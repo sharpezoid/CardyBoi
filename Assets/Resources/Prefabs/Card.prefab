@@ -270,11 +270,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   MouseOver: 0
-  cardName: {fileID: 114727059320431296}
-  cardDescription: {fileID: 114092060012622568}
+  card: {fileID: 0}
+  cardNameText: {fileID: 114727059320431296}
+  cardDescriptionText: {fileID: 114411170374456666}
   cardImage: {fileID: 114093168198404060}
-  cardAction: {fileID: 114256528967033792}
-  cardCost: {fileID: 114411170374456666}
+  cardActionText: {fileID: 114092060012622568}
+  cardCostText: {fileID: 114256528967033792}
+  isDragged: 0
+  isWaitingToPlay: 0
 --- !u!114 &114411170374456666
 MonoBehaviour:
   m_ObjectHideFlags: 1

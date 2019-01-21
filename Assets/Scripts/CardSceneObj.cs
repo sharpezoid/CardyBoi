@@ -11,61 +11,46 @@ public class CardSceneObj : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
 
     Hand hand = null;
 
-    Card card;
+    public Card card;
 
-    public Text cardName;
-    public Text cardDescription;
+    public Text cardNameText;
+    public Text cardDescriptionText;
     public Image cardImage;
-    public Text cardAction;
-    public Text cardCost;
+    public Text cardActionText;
+    public Text cardCostText;
 
     public bool isDragged = false;
+
+    public bool isWaitingToPlay = false;
 
     public void SetupCard(Card _card)
     {
         card = _card;
-        cardName.text = _card.Name;
-        cardDescription.text = _card.Description;
-        cardAction.text = GenerateCardText(_card.effects);
-        cardCost.text = _card.PlayCost.ToString();
+        cardNameText.text = _card.Name;
+        cardDescriptionText.text = _card.Description;
+        cardActionText.text = GenerateCardText(_card.effects);
+        cardCostText.text = _card.ActionCost.ToString();
     }
 
     public IEnumerator PlayCard()
     {
-        // -- play the card animation 
-        yield return new WaitForSeconds(1.5f);
+        Debug.Log("Card Scene Object Play Card : " + card.Name + "  -  " + card.Description );
 
         for (int eLoop = 0; eLoop < card.effects.Count; eLoop++)
         {
-            for (int aLoop = 0; aLoop < card.effects[eLoop].attributes.Count; aLoop++)
-            {
-                CardAttribute atb = card.effects[eLoop].attributes[aLoop];
-                switch (atb.attribute)
-                {
-                    case CardAttribute.Attribute.BurnCards:
-                        // play a burn sequence...
-                        break;
+            GameObject cardEffect = GameObject.Instantiate(card.effects[eLoop].cardEffectPrefab);
 
-                    case CardAttribute.Attribute.DiscardCards:
-                        // play a discard sequence
-                        break;
-                    case CardAttribute.Attribute.DrawCards:
-                        // draw card sequence
-                        break;
+            yield return StartCoroutine(cardEffect.GetComponent<TestEffect>().Play(card));
 
-                    case CardAttribute.Attribute.ModifyActions:
-                        // add action sequence
-                        break;
+            Destroy(cardEffect);
 
-                    case CardAttribute.Attribute.ModifyBlock:  break;
-                    case CardAttribute.Attribute.ModifyHealth:  break;
-                    case CardAttribute.Attribute.ModifyOpponentHealth: break;
-                    case CardAttribute.Attribute.PoisonEnemy: break;
-                    case CardAttribute.Attribute.PoisonSelf:
-                        break;
-                }
-            }
+            yield return null;
         }
+
+
+
+        Debug.Log("Done Playing Card " + card.Name);
+
         yield return null;
     }
 
@@ -138,7 +123,7 @@ public class CardSceneObj : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        if (!hand || isDragged ) { return; }
+        if (!hand || isDragged || isWaitingToPlay || TurnController.instance.turnState != TurnController.TurnState.PlayCards ) { return; }
 
         hand.SetHoveredCard(this);
         //MouseOver = true;
@@ -146,7 +131,7 @@ public class CardSceneObj : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
 
     public void OnPointerStay(PointerEventData eventData)
     {
-        if (!hand || isDragged ) { return; }
+        if (!hand || isDragged || isWaitingToPlay || TurnController.instance.turnState != TurnController.TurnState.PlayCards) { return; }
         //MouseOver = true;
         hand.SetHoveredCard(this);
     }
@@ -161,25 +146,34 @@ public class CardSceneObj : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
 
     public void OnDrag(PointerEventData eventData)
     {
-        hand.UpdateDrag(eventData, this);
-        //GetComponent<RectTransform>().transform.position += new Vector3(eventData.delta.x, eventData.delta.y, 0);
+        if (isDragged && !isWaitingToPlay || TurnController.instance.turnState != TurnController.TurnState.PlayCards) // -- something else might force a stop
+        {
+            hand.UpdateDrag(eventData, this);
+        }
+            //GetComponent<RectTransform>().transform.position += new Vector3(eventData.delta.x, eventData.delta.y, 0);
     }
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        Debug.Log("DRAG START");
-        isDragged = true;
-        //hand.SetHoveredCard(null);
+        if (!isWaitingToPlay || TurnController.instance.turnState != TurnController.TurnState.PlayCards)
+        {
+            isDragged = true;
+            hand.StartDrag(eventData, this);
+            //hand.SetHoveredCard(null);
+        }
     }
 
     public void OnEndDrag(PointerEventData eventData)
     {
-        Debug.Log("DRAG END");
-        isDragged = false;
+        if (!hand || isWaitingToPlay || TurnController.instance.turnState != TurnController.TurnState.PlayCards) { return; }
+
+        hand.EndDrag(eventData, this);
     }
 
     public void OnDrop(PointerEventData eventData)
     {
-        throw new System.NotImplementedException();
+        if (!hand || isWaitingToPlay || TurnController.instance.turnState != TurnController.TurnState.PlayCards) { return; }
+
+        hand.EndDrag(eventData, this);
     }
 }
